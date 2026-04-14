@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,13 +13,21 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { GAUGE_PRESETS, computeCastOn, computeRowCount } from "@/lib/patternGenerator";
+import { GAUGE_PRESETS } from "@/lib/patternGenerator";
+import { usePatternPreview } from "@/hooks/usePatternPreview";
 import type { PatternInputs, CableType, BorderStyle, YarnWeight } from "@/types/pattern";
 
 interface PatternFormProps {
   inputs: PatternInputs;
   onChange: (inputs: PatternInputs) => void;
   onGenerate: () => void;
+}
+
+interface FormFieldProps {
+  id?: string;
+  label: string;
+  helper?: string;
+  children: ReactNode;
 }
 
 const YARN_WEIGHT_LABELS: Record<YarnWeight, string> = {
@@ -31,14 +40,21 @@ const YARN_WEIGHT_LABELS: Record<YarnWeight, string> = {
   "super-bulky": "Super Bulky",
 };
 
+function FormField({ id, label, helper, children }: FormFieldProps) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+      {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
+    </div>
+  );
+}
+
 export function PatternForm({ inputs, onChange, onGenerate }: PatternFormProps) {
-  const castOnPreview = computeCastOn(inputs);
-  const rowsPreview = computeRowCount(inputs);
-  const lengthPreview = (rowsPreview / inputs.gauge.rowsPerInch).toFixed(1);
+  const preview = usePatternPreview(inputs);
 
   function handleYarnWeight(weight: YarnWeight) {
-    const preset = GAUGE_PRESETS[weight];
-    onChange({ ...inputs, gauge: preset });
+    onChange({ ...inputs, gauge: GAUGE_PRESETS[weight] });
   }
 
   function handleGaugeField(field: "stitchesPerInch" | "rowsPerInch" | "yardagePer100g", value: string) {
@@ -56,8 +72,7 @@ export function PatternForm({ inputs, onChange, onGenerate }: PatternFormProps) 
           <CardTitle className="text-lg">Pattern Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="length">Finished Length (inches)</Label>
+          <FormField id="length" label="Finished Length (inches)">
             <Input
               id="length"
               type="number"
@@ -67,10 +82,13 @@ export function PatternForm({ inputs, onChange, onGenerate }: PatternFormProps) 
               value={inputs.desiredLengthInches}
               onChange={(e) => onChange({ ...inputs, desiredLengthInches: Number(e.target.value) })}
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="repeats">Stitch Repeats Across Width</Label>
+          <FormField
+            id="repeats"
+            label="Stitch Repeats Across Width"
+            helper="Each repeat: 4 sts (plain), 6 sts (2x2 cable), 10 sts (4x4 cable)"
+          >
             <Input
               id="repeats"
               type="number"
@@ -80,13 +98,9 @@ export function PatternForm({ inputs, onChange, onGenerate }: PatternFormProps) 
               value={inputs.stitchRepeats}
               onChange={(e) => onChange({ ...inputs, stitchRepeats: Number(e.target.value) })}
             />
-            <p className="text-xs text-muted-foreground">
-              Each repeat: 4 sts (plain), 6 sts (2x2 cable), 10 sts (4x4 cable)
-            </p>
-          </div>
+          </FormField>
 
-          <div className="space-y-1.5">
-            <Label>Cable Type</Label>
+          <FormField label="Cable Type">
             <Select
               value={inputs.cableType}
               onValueChange={(v) => onChange({ ...inputs, cableType: v as CableType })}
@@ -100,10 +114,9 @@ export function PatternForm({ inputs, onChange, onGenerate }: PatternFormProps) 
                 <SelectItem value="4x4">4x4 Cable (bold, 10 sts)</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
 
-          <div className="space-y-1.5">
-            <Label>Border Style</Label>
+          <FormField label="Border Style">
             <Select
               value={inputs.borderStyle}
               onValueChange={(v) => onChange({ ...inputs, borderStyle: v as BorderStyle })}
@@ -118,7 +131,7 @@ export function PatternForm({ inputs, onChange, onGenerate }: PatternFormProps) 
                 <SelectItem value="ribbing">1x1 Ribbing</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
         </CardContent>
       </Card>
 
@@ -128,8 +141,10 @@ export function PatternForm({ inputs, onChange, onGenerate }: PatternFormProps) 
           <CardTitle className="text-lg">Gauge & Yarn Weight</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Yarn Weight</Label>
+          <FormField
+            label="Yarn Weight"
+            helper="Selecting a weight auto-fills gauge. You can override below."
+          >
             <Select
               value={inputs.gauge.weight}
               onValueChange={(v) => handleYarnWeight(v as YarnWeight)}
@@ -145,16 +160,12 @@ export function PatternForm({ inputs, onChange, onGenerate }: PatternFormProps) 
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
-              Selecting a weight auto-fills gauge. You can override below.
-            </p>
-          </div>
+          </FormField>
 
           <Separator />
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="spi">Stitches / inch</Label>
+            <FormField id="spi" label="Stitches / inch">
               <Input
                 id="spi"
                 type="number"
@@ -164,9 +175,8 @@ export function PatternForm({ inputs, onChange, onGenerate }: PatternFormProps) 
                 value={inputs.gauge.stitchesPerInch}
                 onChange={(e) => handleGaugeField("stitchesPerInch", e.target.value)}
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="rpi">Rows / inch</Label>
+            </FormField>
+            <FormField id="rpi" label="Rows / inch">
               <Input
                 id="rpi"
                 type="number"
@@ -176,21 +186,19 @@ export function PatternForm({ inputs, onChange, onGenerate }: PatternFormProps) 
                 value={inputs.gauge.rowsPerInch}
                 onChange={(e) => handleGaugeField("rowsPerInch", e.target.value)}
               />
-            </div>
+            </FormField>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="needle">Needle Size</Label>
+            <FormField id="needle" label="Needle Size">
               <Input
                 id="needle"
                 type="text"
                 value={inputs.gauge.needleSize}
                 onChange={(e) => onChange({ ...inputs, gauge: { ...inputs.gauge, needleSize: e.target.value } })}
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="yardage">Yds / 100g</Label>
+            </FormField>
+            <FormField id="yardage" label="Yds / 100g">
               <Input
                 id="yardage"
                 type="number"
@@ -200,7 +208,7 @@ export function PatternForm({ inputs, onChange, onGenerate }: PatternFormProps) 
                 value={inputs.gauge.yardagePer100g}
                 onChange={(e) => handleGaugeField("yardagePer100g", e.target.value)}
               />
-            </div>
+            </FormField>
           </div>
         </CardContent>
       </Card>
@@ -210,11 +218,11 @@ export function PatternForm({ inputs, onChange, onGenerate }: PatternFormProps) 
         <CardContent className="pt-4 pb-4">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
             <span className="text-muted-foreground">Cast on</span>
-            <span className="font-semibold">{castOnPreview} sts</span>
+            <span className="font-semibold">{preview.castOn} sts</span>
             <span className="text-muted-foreground">Total rows</span>
-            <span className="font-semibold">{rowsPreview}</span>
+            <span className="font-semibold">{preview.rows}</span>
             <span className="text-muted-foreground">Actual length</span>
-            <span className="font-semibold">{lengthPreview}&Prime;</span>
+            <span className="font-semibold">{preview.length}&Prime;</span>
             <span className="text-muted-foreground">Needle</span>
             <span className="font-semibold">{inputs.gauge.needleSize}</span>
           </div>
