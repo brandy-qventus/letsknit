@@ -128,3 +128,17 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  /* Force all accordion content visible when printing */
+  [data-state="closed"] > [data-slot="accordion-content"] {
+    display: block !important;
+    height: auto !important;
+  }
+  body {
+    font-size: 11pt;
+  }
+}
