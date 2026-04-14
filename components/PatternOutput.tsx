@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Accordion,
@@ -16,33 +17,67 @@ interface PatternOutputProps {
   pattern: GeneratedPattern | null;
 }
 
-function RowBlock({ rows }: { rows: RowInstruction[] }) {
+interface RowBlockProps {
+  rows: RowInstruction[];
+  completedRows: Set<number>;
+  onToggle: (rowNumber: number) => void;
+}
+
+function RowBlock({ rows, completedRows, onToggle }: RowBlockProps) {
   return (
     <div className="space-y-0.5">
-      {rows.map((row) => (
-        <div
-          key={row.rowNumber}
-          className={`flex items-start gap-2 py-1 px-2 rounded text-sm font-mono ${
-            row.isCableCrossRow
-              ? "border-l-4 border-amber-400 bg-amber-50 dark:bg-amber-950/20"
-              : row.side === "WS"
-              ? "text-muted-foreground"
-              : ""
-          }`}
-        >
-          <span className="shrink-0">{row.instruction}</span>
-          {row.isCableCrossRow && (
-            <Badge variant="outline" className="shrink-0 text-amber-700 border-amber-400 text-xs ml-auto">
-              CABLE
-            </Badge>
-          )}
-        </div>
-      ))}
+      {rows.map((row) => {
+        const done = completedRows.has(row.rowNumber);
+        return (
+          <label
+            key={row.rowNumber}
+            className={`flex items-center gap-3 py-1.5 px-2 rounded cursor-pointer select-none text-sm font-mono transition-colors ${
+              done
+                ? "opacity-40"
+                : row.isCableCrossRow
+                ? "border-l-4 border-amber-400 bg-amber-50 dark:bg-amber-950/20"
+                : row.side === "WS"
+                ? "text-muted-foreground"
+                : ""
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={done}
+              onChange={() => onToggle(row.rowNumber)}
+              className="w-5 h-5 shrink-0 cursor-pointer accent-primary"
+            />
+            <span className={`shrink-0 ${done ? "line-through" : ""}`}>
+              {row.instruction}
+            </span>
+            {row.isCableCrossRow && !done && (
+              <Badge variant="outline" className="shrink-0 text-amber-700 border-amber-400 text-xs ml-auto">
+                CABLE
+              </Badge>
+            )}
+          </label>
+        );
+      })}
     </div>
   );
 }
 
 export function PatternOutput({ pattern }: PatternOutputProps) {
+  const [completedRows, setCompletedRows] = useState<Set<number>>(new Set());
+
+  // Reset checkboxes whenever a new pattern is generated
+  useEffect(() => {
+    setCompletedRows(new Set());
+  }, [pattern]);
+
+  function toggleRow(rowNumber: number) {
+    setCompletedRows((prev) => {
+      const next = new Set(prev);
+      next.has(rowNumber) ? next.delete(rowNumber) : next.add(rowNumber);
+      return next;
+    });
+  }
+
   if (!pattern) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground text-center p-12">
@@ -144,13 +179,13 @@ export function PatternOutput({ pattern }: PatternOutputProps) {
         {/* Row-by-row instructions */}
         <AccordionItem value="instructions" className="border rounded-lg px-4">
           <AccordionTrigger className="text-sm font-medium">
-            Row-by-Row Instructions ({totalRowCount} rows)
+            Row-by-Row Instructions ({completedRows.size} / {totalRowCount} done)
           </AccordionTrigger>
           <AccordionContent className="space-y-4">
             <p className="text-sm font-mono font-semibold">CO {castOnCount} sts.</p>
             {rowBlocks.map((block, i) => (
               <div key={i}>
-                <RowBlock rows={block} />
+                <RowBlock rows={block} completedRows={completedRows} onToggle={toggleRow} />
                 {i < rowBlocks.length - 1 && <Separator className="mt-3" />}
               </div>
             ))}
